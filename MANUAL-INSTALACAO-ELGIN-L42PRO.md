@@ -4,6 +4,10 @@ Este manual instala o **LPrint** (aplicativo de código aberto de Michael R Swee
 biblioteca PAPPL) em um servidor Ubuntu/Debian, deixando disponível **apenas** o driver da
 sua impressora **Elgin L42 Pro Full**, com um painel web simples acessível pelo Chrome.
 
+Este manual já reflete uma instalação real que fizemos ponta a ponta e os problemas que
+apareceram no caminho — inclusive um bug de branch e um bug de opção de linha de comando.
+Siga os passos na ordem.
+
 ## 0. O que foi verificado neste código
 
 - O projeto em `lprint-master/` é o **LPrint** oficial (github.com/michaelrsweet/lprint), um
@@ -14,10 +18,12 @@ sua impressora **Elgin L42 Pro Full**, com um painel web simples acessível pelo
   confirma reconhecimento automático das linguagens **EPL / ZPL / PPLA / PPLB**. Por isso ela
   funciona perfeitamente com o driver **ZPL** já existente no LPrint (mesmo driver usado para
   impressoras Zebra).
-- **Já editei o código-fonte** desta pasta (arquivos [lprint.c](lprint.c) e
-  [lprint-zpl.h](lprint-zpl.h)) para remover todos os outros fabricantes/drivers (DYMO,
-  ESC/POS, Seiko, TSPL, EPL2, Brother, CPCL). Ao compilar esta pasta, o LPrint passa a
-  oferecer **somente duas opções**, ambas para a sua impressora:
+- **A base do código é a tag estável `v1.4.0`** do LPrint, não a branch `master` (a `master` é
+  de desenvolvimento e tem um bug real: `lprint add` falha com
+  "Attribute groups are out of order"). Em cima da v1.4.0, editamos dois arquivos
+  ([lprint.c](lprint.c) e [lprint-zpl.h](lprint-zpl.h)) para remover todos os outros
+  fabricantes/drivers (DYMO, ESC/POS, Seiko, TSPL, EPL2, Brother, CPCL). Ao compilar, o LPrint
+  passa a oferecer **somente duas opções**, ambas para a sua impressora:
   - `zpl_4inch-203dpi-dt` → **Elgin L42 Pro Full (Térmica Direta)** — sem ribbon.
   - `zpl_4inch-203dpi-tt` → **Elgin L42 Pro Full (Transferência Térmica)** — com ribbon.
 - A etiqueta de autoteste que você imprimiu mostra que a impressora está hoje configurada em
@@ -60,7 +66,7 @@ sudo apt install -y build-essential git pkg-config autoconf \
 
 O LPrint depende da biblioteca PAPPL (também de Michael Sweet), que normalmente não vem
 empacotada — compilamos do código-fonte. **Use a tag estável `v1.4.11`, não a branch
-principal** — o branch de desenvolvimento do PAPPL já exige CUPS 2.5/3.0, versão que ainda
+principal** — a branch de desenvolvimento do PAPPL já exige CUPS 2.5/3.0, versão que ainda
 não existe empacotada no Ubuntu/Debian; a v1.4.11 exige só CUPS 2.2+, que o `libcups2-dev`
 do passo 2 já atende:
 
@@ -87,8 +93,8 @@ pkg-config --modversion pappl
 
 ## 4. Baixar o código-fonte do LPrint no servidor
 
-O código (já com as edições que deixam só a Elgin) está no seu repositório GitHub. No
-servidor Linux:
+O código (já na base estável v1.4.0, já com as edições que deixam só a Elgin) está no seu
+repositório GitHub. No servidor Linux:
 
 ```bash
 cd ~
@@ -102,8 +108,8 @@ git clone https://github.com/Admsmartfit/lprint-master.git
 
 ## 5. Compilar e instalar o LPrint
 
-Já no servidor Linux. O `git clone` não preserva a permissão de execução de alguns scripts,
-então rode o `chmod` antes do `./configure`:
+Já no servidor Linux. Se o `git clone` não preservar a permissão de execução de alguns
+scripts, rode o `chmod` antes do `./configure` (não custa nada rodar sempre, por garantia):
 
 ```bash
 cd ~/lprint-master
@@ -111,6 +117,7 @@ chmod +x configure config.guess config.sub install-sh
 ./configure
 make
 sudo make install
+sudo systemctl daemon-reload
 ```
 
 Isso instala o binário em `/usr/local/bin/lprint`, as páginas de manual, e o serviço
@@ -157,6 +164,9 @@ EOF
 sudo mkdir -p /var/spool/lprint
 ```
 
+> **Atenção ao nome da opção:** é `system-name`, não `server-name` — usar o nome errado não
+> quebra nada, mas gera avisos "Unknown directive" no log e a opção é ignorada.
+
 > **Sobre a linha `server-options`:** por padrão o LPrint usaria
 > `multi-queue,web-interface,web-log,web-security,web-tls`. Ao definir `server-options=`
 > explicitamente acima, isso é **substituído** — de propósito removi `web-security` (sem
@@ -172,6 +182,16 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now lprint.service
 sudo systemctl status lprint.service
 ```
+
+> **Se você já tinha rodado o LPrint antes** (testes, ou uma versão anterior deste manual)
+> pode existir um `/var/lib/lprint.state` antigo com configuração incompatível, o que gera
+> avisos "Unknown directive" no log e pode causar comportamento estranho. Se isso acontecer,
+> pare o serviço, apague o arquivo de estado e inicie de novo:
+> ```bash
+> sudo systemctl stop lprint.service
+> sudo rm -f /var/lib/lprint.state
+> sudo systemctl start lprint.service
+> ```
 
 ---
 
@@ -205,22 +225,20 @@ o tipo de etiqueta que você usa:
 
 ```bash
 # Se usa RIBBON (transferência térmica) — modo atual da impressora:
-sudo lprint add -d ElginL42Pro \
-  -v socket://192.168.15.90 \
-  -m zpl_4inch-203dpi-tt \
-  -o media-ready=na_index-4x6_4x6in
+sudo lprint add -d ElginL42Pro -v socket://192.168.15.90 -m zpl_4inch-203dpi-tt
 
 # OU, se usa etiqueta térmica direta (sem ribbon):
-# sudo lprint add -d ElginL42Pro \
-#   -v socket://192.168.15.90 \
-#   -m zpl_4inch-203dpi-dt \
-#   -o media-ready=na_index-4x6_4x6in
+# sudo lprint add -d ElginL42Pro -v socket://192.168.15.90 -m zpl_4inch-203dpi-dt
 
 sudo lprint default -d ElginL42Pro
 ```
 
-Ajuste `media-ready` para o tamanho real da sua etiqueta se não for 4x6 polegadas (veja
-`lprint options -d ElginL42Pro` para ver os tamanhos suportados).
+> **Não use `-o media-ready=...` neste comando.** Existe um bug no `lprint add`/PAPPL onde
+> passar `-o media-ready=` junto com a criação da impressora quebra com o erro
+> `Unable to add printer: Attribute groups are out of order (2 < 4)`. Não é necessário de
+> qualquer forma: o driver ZPL já vem com **4x6"** como mídia padrão de fábrica. Se sua
+> etiqueta for de outro tamanho, ajuste depois pela página de mídia do painel web (seção 11),
+> não pelo terminal.
 
 ---
 
@@ -255,7 +273,8 @@ Nesse painel você consegue:
 - Ver o status da impressora Elgin e da fila de trabalhos.
 - Cancelar/reimprimir trabalhos.
 - Ver o log do servidor.
-- Ver/alterar mídia (tamanho de etiqueta) configurada.
+- Ver/alterar mídia (tamanho de etiqueta) configurada — é por aqui, e não pelo terminal, que
+  você deve trocar o tamanho da etiqueta se não for 4x6" (veja o aviso do passo 9).
 
 **Para efetivamente imprimir documentos do Chrome** (páginas web, PDFs, etc. via `Ctrl+P`),
 o computador cliente precisa "enxergar" a Elgin como uma impressora de rede — isso é feito
@@ -299,9 +318,13 @@ painel.
 | Sintoma | Causa provável | Solução |
 |---|---|---|
 | `lprint add` trava/erro de conexão | IP errado ou impressora desligada | Reimprima o autoteste (Feed + Power) e confira o IP |
+| `Unable to add printer: Attribute groups are out of order` | Bug do `-o media-ready=` no `add` (branch `master`/PAPPL) | Não use `-o media-ready=` no `add`; ajuste a mídia depois pelo painel web |
+| `configure: error: Sorry, you need CUPS 2.5.0 or higher` (ao compilar o PAPPL) | Clonou a branch de desenvolvimento do PAPPL em vez da tag `v1.4.11` | Reclone com `--branch v1.4.11` (veja passo 3) |
+| `undefined reference to 'cupsCopyString'` ao linkar o `lprint` | Código da branch `master` do LPrint usa API do CUPS 2.5+, ausente no CUPS 2.4 do Ubuntu | Use a base `v1.4.0` do LPrint (veja passo 4/0) — ela não usa essa função |
+| "Unknown directive" no log do serviço | Chave errada no `/etc/lprint.conf` (ex: `server-name` em vez de `system-name`), ou `/var/lib/lprint.state` corrompido de um teste anterior | Corrija a chave; se persistir, pare o serviço e apague `/var/lib/lprint.state` (veja passo 6) |
 | Serviço não inicia | `avahi-daemon` não está rodando | `sudo systemctl status avahi-daemon` |
 | Painel não abre no Chrome | Porta bloqueada no firewall | `sudo ufw allow 8050/tcp` |
-| Etiqueta sai deslocada/cortada | Tamanho de mídia errado | Ajuste `media-ready` com `lprint modify` |
+| Etiqueta sai deslocada/cortada | Tamanho de mídia errado | Ajuste a mídia pelo painel web (não use `-o media-ready=` no terminal) |
 | Etiqueta sai em branco | Driver errado (`dt` vs `tt`) para o tipo de mídia usado | Troque o driver com `lprint modify -d ElginL42Pro -m zpl_4inch-203dpi-dt` (ou `-tt`) |
 | `./configure` não acha o CUPS/PAPPL | Pacote `-dev` com nome diferente | Rode `pkg-config --list-all \| grep -i cups` para achar o nome certo |
 
