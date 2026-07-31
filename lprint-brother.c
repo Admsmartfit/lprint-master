@@ -1,7 +1,7 @@
 //
 // Experimental Brother driver for LPrint, a Label Printer Application
 //
-// Copyright © 2023-2026 by Michael R Sweet.
+// Copyright © 2023-2025 by Michael R Sweet.
 //
 // Licensed under Apache License v2.0.  See the file "LICENSE" for more
 // information.
@@ -92,11 +92,7 @@ static const char * const lprint_brother_pt_media[] =
 //
 
 static bool	lprint_brother_get_status(pappl_printer_t *printer, pappl_device_t *device);
-#ifdef PAPPL_API_VERSION_MAJOR
-static bool	lprint_brother_printfile(pappl_job_t *job, int doc_number, pappl_pr_options_t *options, pappl_device_t *device);
-#else
 static bool	lprint_brother_printfile(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
-#endif // PAPPL_API_VERSION_MAJOR
 static bool	lprint_brother_rendjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
 static bool	lprint_brother_rendpage(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned page);
 static bool	lprint_brother_rstartjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
@@ -277,13 +273,9 @@ lprint_brother_get_status(
 static bool				// O - `true` on success, `false` on failure
 lprint_brother_printfile(
     pappl_job_t        *job,		// I - Job
-#ifdef PAPPL_API_VERSION_MAJOR
-    int                doc_number,	// I - Document number
-#endif // PAPPL_API_VERSION_MAJOR
     pappl_pr_options_t *options,	// I - Job options
     pappl_device_t     *device)		// I - Output device
 {
-  const char	*filename;		// Document filename
   int		fd;			// Input file
   ssize_t	bytes;			// Bytes read/written
   char		buffer[65536];		// Read/write buffer
@@ -296,15 +288,9 @@ lprint_brother_printfile(
   // Copy the raw file...
   papplJobSetImpressions(job, 1);
 
-#ifdef PAPPL_API_VERSION_MAJOR
-  filename = papplJobGetDocumentFilename(job, doc_number);
-#else
-  filename = papplJobGetFilename(job);
-#endif // PAPPL_API_VERSION_MAJOR
-
-  if ((fd  = open(filename, O_RDONLY)) < 0)
+  if ((fd  = open(papplJobGetFilename(job), O_RDONLY)) < 0)
   {
-    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open print file '%s': %s", filename, strerror(errno));
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open print file '%s': %s", papplJobGetFilename(job), strerror(errno));
     return (false);
   }
 
@@ -487,7 +473,7 @@ lprint_brother_rstartpage(
   if (page > 0)
     papplDevicePuts(device, "\014");	// Eject the previous page
 
-  if (!lprintDitherAlloc(&brother->dither, job, options, /*head_width*/0, CUPS_CSPACE_K, options->header.HWResolution[0] == 300 ? 1.2 : 1.0, /*out_mirror*/false))
+  if (!lprintDitherAlloc(&brother->dither, job, options, CUPS_CSPACE_K, options->header.HWResolution[0] == 300 ? 1.2 : 1.0))
     return (false);
 
   brother->count     = 0;

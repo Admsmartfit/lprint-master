@@ -176,11 +176,7 @@ static const char * const lprint_zpl_4inch_media[] =
 #if ZPL_COMPRESSION
 static bool	lprint_zpl_compress(pappl_device_t *device, unsigned char ch, unsigned count);
 #endif // ZPL_COMPRESSION
-#ifdef PAPPL_API_VERSION_MAJOR
-static bool	lprint_zpl_printfile(pappl_job_t *job, int doc_number, pappl_pr_options_t *options, pappl_device_t *device);
-#else
 static bool	lprint_zpl_printfile(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
-#endif // PAPPL_API_VERSION_MAJOR
 static bool	lprint_zpl_rendjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
 static bool	lprint_zpl_rendpage(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned page);
 static bool	lprint_zpl_rstartjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
@@ -234,14 +230,7 @@ lprintZPL(
   data->x_default = data->y_default = data->x_resolution[0];
 
   if (strstr(driver_name, "-cutter"))
-  {
-#ifdef PAPPL_API_VERSION_MAJOR
-    data->finishings_default   = PAPPL_FINISHINGS_TRIM;
-    data->finishings_supported = PAPPL_FINISHINGS_TRIM;
-#else
     data->finishings = PAPPL_FINISHINGS_TRIM;
-#endif // PAPPL_API_VERSION_MAJOR
-  }
 
   if (!strncmp(driver_name, "zpl_2inch-", 16))
   {
@@ -319,13 +308,8 @@ lprintZPLQueryDriver(
   *name = '\0';
 
   // Connect and send Host Information command...
-#ifdef PAPPL_API_VERSION_MAJOR
-  if ((device = papplDeviceOpen(device_uri, /*job*/NULL, papplLogDevice, system)) == NULL)
-    return;
-#else
   if ((device = papplDeviceOpen(device_uri, "query", papplLogDevice, system)) == NULL)
     return;
-#endif // PAPPL_API_VERSION_MAJOR
 
   if (papplDevicePuts(device, "~HI\n") < 0)
     goto done;
@@ -433,13 +417,9 @@ lprint_zpl_compress(
 static bool				// O - `true` on success, `false` on failure
 lprint_zpl_printfile(
     pappl_job_t        *job,		// I - Job
-#ifdef PAPPL_API_VERSION_MAJOR
-    int                doc_number,	// I - Document number
-#endif // PAPPL_API_VERSION_MAJOR
     pappl_pr_options_t *options,	// I - Job options
     pappl_device_t     *device)		// I - Output device
 {
-  const char	*filename;		// Document filename
   int		fd;			// Input file
   ssize_t	bytes;			// Bytes read/written
   char		buffer[65536];		// Read/write buffer
@@ -448,15 +428,9 @@ lprint_zpl_printfile(
   // Copy the raw file...
   papplJobSetImpressions(job, 1);
 
-#ifdef PAPPL_API_VERSION_MAJOR
-  filename = papplJobGetDocumentFilename(job, doc_number);
-#else
-  filename = papplJobGetFilename(job);
-#endif // PAPPL_API_VERSION_MAJOR
-
-  if ((fd  = open(filename, O_RDONLY)) < 0)
+  if ((fd  = open(papplJobGetFilename(job), O_RDONLY)) < 0)
   {
-    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open print file '%s': %s", filename, strerror(errno));
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open print file '%s': %s", papplJobGetFilename(job), strerror(errno));
     return (false);
   }
 
@@ -669,7 +643,7 @@ lprint_zpl_rstartpage(
   else if (options->header.HWResolution[0] == 600)
     out_gamma = 1.44;
 
-  if (!lprintDitherAlloc(&zpl->dither, job, options, /*head_width*/0, CUPS_CSPACE_K, out_gamma, /*out_mirror*/false))
+  if (!lprintDitherAlloc(&zpl->dither, job, options, CUPS_CSPACE_K, out_gamma))
     return (false);
 
   // print-speed

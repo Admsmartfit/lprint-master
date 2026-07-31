@@ -79,8 +79,6 @@
 #      define cupsArrayGetNext cupsArrayNext
 #      define cupsArrayGetPrev cupsArrayPrev
 #      define cupsCreateTempFd(prefix,suffix,buffer,bufsize) cupsTempFd(buffer,bufsize)
-#      define cupsGetError cupsLastError
-#      define cupsGetErrorString cupsLastErrorString
 #      define cupsGetUser cupsUser
 #      define httpAddrConnect httpAddrConnect2
 #      define httpAddrGetFamily httpAddrFamily
@@ -106,15 +104,6 @@ typedef ipp_copycb_t ipp_copy_cb_t;
 #    define cups_utf8_t char
 #    define IPP_NUM_CAST (size_t)
 #  endif // CUPS_VERSION_MAJOR < 3
-
-#  if PAPPL_API_VERSION_MAJOR < 2
-#    define pappl_len_t int
-#    define PAPPL_RASTER_TYPE_BLACK_1 PAPPL_PWG_RASTER_TYPE_BLACK_1
-#    define PAPPL_RASTER_TYPE_BLACK_8 PAPPL_PWG_RASTER_TYPE_BLACK_8
-#    define PAPPL_RASTER_TYPE_SGRAY_8 PAPPL_PWG_RASTER_TYPE_SGRAY_8
-#  else
-#    define pappl_len_t size_t
-#  endif // PAPPL_API_VERSION_MAJOR < 2
 
 
 //
@@ -153,9 +142,7 @@ typedef struct lprint_dither_s		// Dithering state
 		in_white;		// Input white pixel value (0 or 255)
   unsigned char	*output,		// Output bitmap
 		out_white;		// Output white pixel value (0 or 255)
-  bool		out_mirror;		// Mirror/flip output lines?
-  unsigned	out_offset,		// Starting pixel in output?
-		out_width;		// Output width in bytes
+  unsigned	out_width;		// Output width in bytes
 } lprint_dither_t;
 
 typedef struct lprint_extdata_s		// Per-printer extensions data
@@ -171,7 +158,7 @@ typedef struct lprint_extdata_s		// Per-printer extensions data
 // Functions...
 //
 
-extern bool	lprintDitherAlloc(lprint_dither_t *dither, pappl_job_t *job, pappl_pr_options_t *options, unsigned head_width, cups_cspace_t out_cspace, double out_gamma, bool out_mirror);
+extern bool	lprintDitherAlloc(lprint_dither_t *dither, pappl_job_t *job, pappl_pr_options_t *options, cups_cspace_t out_cspace, double out_gamma);
 extern void	lprintDitherFree(lprint_dither_t *dither);
 extern bool	lprintDitherLine(lprint_dither_t *dither, unsigned y, const unsigned char *line);
 
@@ -192,11 +179,7 @@ extern bool	lprintDYMO(pappl_system_t *system, const char *driver_name, const ch
 extern bool	lprintEPL2(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);
 extern bool	lprintESCPOS(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *driver_data, ipp_t **driver_attrs, void *cbdata);
 extern bool	lprintSII(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);
-#  if PAPPL_API_VERSION_MAJOR < 2
 extern bool	lprintTestFilterCB(pappl_job_t *job, pappl_device_t *device, void *data);
-#  else
-extern bool	lprintTestFilterCB(pappl_job_t *job, int doc_number, pappl_pr_options_t *options, pappl_device_t *device, void *data);
-#  endif // PAPPL_API_VERSION_MAJOR < 2
 extern const char *lprintTestPageCB(pappl_printer_t *printer, char *buffer, size_t bufsize);
 extern bool	lprintTSPL(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);
 extern bool	lprintZPL(pappl_system_t *system, const char *driver_name, const char *device_uri, const char *device_id, pappl_pr_driver_data_t *data, ipp_t **attrs, void *cbdata);

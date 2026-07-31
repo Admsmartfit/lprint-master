@@ -145,7 +145,7 @@ rede (em vez da porta aleatória padrão):
 
 ```bash
 sudo tee /etc/lprint.conf > /dev/null <<'EOF'
-server-name=lprint-server
+system-name=lprint-server
 server-port=8050
 listen-hostname=*
 server-options=multi-queue,web-interface,web-log,web-network

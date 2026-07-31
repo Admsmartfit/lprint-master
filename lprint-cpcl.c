@@ -98,11 +98,7 @@ static const char * const lprint_hma300e_media[] =
 // Local functions...
 //
 
-#ifdef PAPPL_API_VERSION_MAJOR
-static bool	lprint_cpcl_printfile(pappl_job_t *job, int doc_number, pappl_pr_options_t *options, pappl_device_t *device);
-#else
 static bool	lprint_cpcl_printfile(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
-#endif // PAPPL_API_VERSION_MAJOR
 static bool	lprint_cpcl_rendjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
 static bool	lprint_cpcl_rendpage(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device, unsigned page);
 static bool	lprint_cpcl_rstartjob(pappl_job_t *job, pappl_pr_options_t *options, pappl_device_t *device);
@@ -149,12 +145,7 @@ lprintCPCL(
 
   data->x_default = data->y_default = data->x_resolution[0];
 
-#ifdef PAPPL_API_VERSION_MAJOR
-  data->finishings_default   = PAPPL_FINISHINGS_TRIM;
-  data->finishings_supported = PAPPL_FINISHINGS_TRIM;
-#else
   data->finishings = PAPPL_FINISHINGS_TRIM;
-#endif // PAPPL_API_VERSION_MAJOR
 
   if (!strncmp(driver_name, "cpcl_hma300e-", 13))
   {
@@ -207,13 +198,10 @@ lprintCPCL(
 static bool				// O - `true` on success, `false` on failure
 lprint_cpcl_printfile(
     pappl_job_t        *job,		// I - Job
-#ifdef PAPPL_API_VERSION_MAJOR
-    int                doc_number,	// I - Document number
-#endif // PAPPL_API_VERSION_MAJOR
     pappl_pr_options_t *options,	// I - Job options
     pappl_device_t     *device)		// I - Output device
 {
-  const char	*filename;		// Document filename
+
   int		fd;			// Input file
   ssize_t	bytes;			// Bytes read/written
   char		buffer[65536];		// Read/write buffer
@@ -222,15 +210,9 @@ lprint_cpcl_printfile(
   // Copy the raw file...
   papplJobSetImpressions(job, 1);
 
-#ifdef PAPPL_API_VERSION_MAJOR
-  filename = papplJobGetDocumentFilename(job, doc_number);
-#else
-  filename = papplJobGetFilename(job);
-#endif // PAPPL_API_VERSION_MAJOR
-
-  if ((fd  = open(filename, O_RDONLY)) < 0)
+  if ((fd  = open(papplJobGetFilename(job), O_RDONLY)) < 0)
   {
-    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open print file '%s': %s", filename, strerror(errno));
+    papplLogJob(job, PAPPL_LOGLEVEL_ERROR, "Unable to open print file '%s': %s", papplJobGetFilename(job), strerror(errno));
     return (false);
   }
 
@@ -374,7 +356,7 @@ lprint_cpcl_rstartpage(
   (void)page;
 
   // Initialize the dither buffer...
-  if (!lprintDitherAlloc(&cpcl->dither, job, options, /*head_width*/0, CUPS_CSPACE_W, options->header.HWResolution[0] == 300 ? 1.2 : 1.0, /*out_mirror*/false))
+  if (!lprintDitherAlloc(&cpcl->dither, job, options, CUPS_CSPACE_W, options->header.HWResolution[0] == 300 ? 1.2 : 1.0))
     return (false);
 
   // Initialize the printer...

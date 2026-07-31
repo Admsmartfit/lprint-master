@@ -13,7 +13,7 @@ AC_PREREQ(2.60)
 
 
 dnl Package name and version...
-AC_INIT([lprint], [1.5.0.unstable], [https://github.com/michaelrsweet/lprint/issues], [lprint], [https://www.msweet.org/lprint/])
+AC_INIT([lprint], [1.4.0], [https://github.com/michaelrsweet/lprint/issues], [lprint], [https://www.msweet.org/lprint/])
 AC_CONFIG_HEADERS([config.h])
 
 LPRINT_VERSION="AC_PACKAGE_VERSION"
@@ -49,7 +49,7 @@ AS_IF([test "x$host_os_version" = x], [
 
 dnl Compiler options...
 CFLAGS="${CFLAGS:=}"
-CPPFLAGS="${CPPFLATS:=}"
+CXXFLAGS="${CXXFLAGS:=}"
 LDFLAGS="${LDFLAGS:=}"
 LIBS="${LIBS:=}"
 
@@ -99,11 +99,8 @@ AC_PATH_TOOL([PKGCONFIG], [pkg-config])
 
 
 dnl PAPPL library...
-AS_IF([$PKGCONFIG --exists pappl2], [
-    CPPFLAGS="$CPPFLAGS $($PKGCONFIG --cflags pappl2)"
-    LIBS="$LIBS $($PKGCONFIG --libs pappl2)"
-], [$PKGCONFIG --exists pappl --atleast-version=1.2], [
-    CPPFLAGS="$CPPFLAGS $($PKGCONFIG --cflags pappl)"
+AS_IF([$PKGCONFIG --exists pappl --atleast-version=1.2], [
+    CFLAGS="$CFLAGS $($PKGCONFIG --cflags pappl)"
     LIBS="$LIBS $($PKGCONFIG --libs pappl)"
 ], [
     AC_MSG_ERROR([PAPPL 1.2 or later is required for LPrint.])
@@ -117,13 +114,13 @@ AS_IF([$PKGCONFIG --exists cups3], [
     CUPS_VERSION="$($PKGCONFIG --modversion cups3)"
     AC_MSG_RESULT([yes, v$CUPS_VERSION])
 
-    CPPFLAGS="$CPPFLAGS $($PKGCONFIG --cflags cups3)"
+    CFLAGS="$CFLAGS $($PKGCONFIG --cflags cups3)"
     LIBS="$LIBS $($PKGCONFIG --libs cups3)"
 ], [$PKGCONFIG --exists cups], [
     CUPS_VERSION="$($PKGCONFIG --modversion cups)"
     AC_MSG_RESULT([yes, v$CUPS_VERSION])
 
-    CPPFLAGS="$CPPFLAGS $($PKGCONFIG --cflags cups)"
+    CFLAGS="$CFLAGS $($PKGCONFIG --cflags cups)"
     LIBS="$LIBS $($PKGCONFIG --libs cups)"
 ], [test "x$CUPSCONFIG" = x], [
     AC_MSG_RESULT([no])
@@ -137,7 +134,7 @@ AS_IF([$PKGCONFIG --exists cups3], [
     ])
 
     AC_MSG_RESULT([yes, v$CUPS_VERSION])
-    CPPFLAGS="$CPPFLAGS $($CUPSCONFIG --cflags)"
+    CFLAGS="$CFLAGS $($CUPSCONFIG --cflags)"
     LDFLAGS="$LDFLAGSS $($CUPSCONFIG --ldflags)"
     LIBS="$LIBS $($CUPSCONFIG --image --libs)"
 ])

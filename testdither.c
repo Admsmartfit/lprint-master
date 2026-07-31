@@ -1,14 +1,11 @@
 //
 // Dither test program
 //
-// Copyright © 2023-2026 by Michael R Sweet
-//
-// Licensed under Apache License v2.0.  See the file "LICENSE" for more
-// information.
-//
 // Usage:
 //
-//   ./testdither [--help] [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg > OUTPUT.pwg
+//   ./testdither [--plain] INPUT.pwg > OUTPUT.pwg
+//
+// Copyright © 2023-2024 by Michael R Sweet
 //
 
 #include "lprint.h"
@@ -31,15 +28,12 @@ int					// O - Exit status
 main(int  argc,				// I - Number of command-line arguments
      char *argv[])			// I - Command-line arguments
 {
-  int			i;		// Looping var
   int			ret = 0;	// Exit status
-  bool			mirror = false;	// Mirror output
   bool			plain = false;	// Plain/original output
-  unsigned		head_width = 0;	// Head width in pixels
   pappl_pr_options_t	options;	// Print job options
   unsigned		page,		// Current page
 			y;		// Current line on page
-  const char		*in_name = NULL;// Input filename
+  const char		*in_name;	// Input filename
   int			in_file;	// Input file
   cups_raster_t		*in_ras;	// Input raster stream
   cups_page_header_t	in_header;	// Input page header
@@ -47,8 +41,6 @@ main(int  argc,				// I - Number of command-line arguments
   cups_raster_t		*out_ras;	// Output raster stream
   cups_page_header_t	out_header;	// Output page header
   unsigned char		*out_line;	// Output line
-  unsigned char		*out_ptr;	// Pointer into output line
-  unsigned		out_count;	// Number of pixels in output line
   lprint_dither_t	dither;		// Dithering data
   static const pappl_dither_t clustered =
   {					// Clustered-Dot Dither Matrix
@@ -72,48 +64,18 @@ main(int  argc,				// I - Number of command-line arguments
 
 
   // Check command-line
-  for (i = 1; i < argc; i ++)
+  if (argc == 2 && argv[1][0] != '-')
   {
-    if (!strcmp(argv[i], "--help"))
-    {
-      fputs("Usage: ./testdither [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg >OUTPUT.pwg\n", stderr);
-      return (0);
-    }
-    else if (!strcmp(argv[i], "--mirror"))
-    {
-      mirror = true;
-    }
-    else if (!strcmp(argv[i], "--plain"))
-    {
-      plain = true;
-    }
-    else if (!strcmp(argv[i], "--width"))
-    {
-      i ++;
-      if (i >= argc)
-      {
-        fputs("testdither: Missing width after '--width'.\n", stderr);
-        fputs("Usage: ./testdither [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg >OUTPUT.pwg\n", stderr);
-        return (1);
-      }
-
-      head_width = (unsigned)strtoul(argv[i], NULL, 10);
-    }
-    else if (!strncmp(argv[i], "--", 2) || in_name)
-    {
-      fprintf(stderr, "testdither: Unknown argument '%s'.\n", argv[i]);
-      fputs("Usage: ./testdither [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg >OUTPUT.pwg\n", stderr);
-      return (1);
-    }
-    else
-    {
-      in_name = argv[i];
-    }
+    in_name = argv[1];
   }
-
-  if (!in_name)
+  else if (argc == 3 && !strcmp(argv[1], "--plain"))
   {
-    fputs("Usage: ./testdither [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg >OUTPUT.pwg\n", stderr);
+    plain   = true;
+    in_name = argv[2];
+  }
+  else
+  {
+    fputs("Usage: ./dithertest [--plain] INPUT.pwg >OUTPUT.pwg\n", stderr);
     return (1);
   }
 
@@ -153,9 +115,6 @@ main(int  argc,				// I - Number of command-line arguments
     memcpy(&options.header, &in_header, sizeof(options.header));
 
     memcpy(&out_header, &in_header, sizeof(out_header));
-    if (head_width > 0)
-      out_header.cupsWidth = head_width;
-
     if (plain)
     {
       out_header.cupsColorOrder   = CUPS_ORDER_CHUNKED;
@@ -176,29 +135,12 @@ main(int  argc,				// I - Number of command-line arguments
     }
 
     // Allocate memory
-    if (!lprintDitherAlloc(&dither, NULL, &options, head_width, CUPS_CSPACE_K, 1.0, mirror))
+    if (!lprintDitherAlloc(&dither, NULL, &options, CUPS_CSPACE_K, 1.0))
     {
       fputs("Unable to initialize dither buffer.\n", stderr);
       ret = 1;
       break;
     }
-
-#if 0 // DEBUG
-    fprintf(stderr, "dither=[\n");
-    for (i = 0; i < 16; i ++)
-      fprintf(stderr, "  [ %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u ]\n", dither.dither[i][0], dither.dither[i][1], dither.dither[i][2], dither.dither[i][3], dither.dither[i][4], dither.dither[i][5], dither.dither[i][6], dither.dither[i][7], dither.dither[i][8], dither.dither[i][9], dither.dither[i][10], dither.dither[i][11], dither.dither[i][12], dither.dither[i][13], dither.dither[i][14], dither.dither[i][15]);
-    fprintf(stderr, "]\n");
-    fprintf(stderr, "in_bottom=%u\n", dither.in_bottom);
-    fprintf(stderr, "in_left=%u\n", dither.in_left);
-    fprintf(stderr, "in_top=%u\n", dither.in_top);
-    fprintf(stderr, "in_width=%u\n", dither.in_width);
-    fprintf(stderr, "in_bpp=%u\n", dither.in_bpp);
-    fprintf(stderr, "in_white=%u\n", dither.in_white);
-    fprintf(stderr, "out_mirror=%s\n", dither.out_mirror ? "true" : "false");
-    fprintf(stderr, "out_offset=%u\n", dither.out_offset);
-    fprintf(stderr, "out_white=%u\n", dither.out_white);
-    fprintf(stderr, "out_width=%u\n", dither.out_width);
-#endif // 0
 
     in_line  = malloc(in_header.cupsBytesPerLine);
     out_line = malloc(out_header.cupsBytesPerLine);
@@ -211,17 +153,6 @@ main(int  argc,				// I - Number of command-line arguments
       lprintDitherFree(&dither);
       ret = 1;
       break;
-    }
-
-    if (!plain)
-    {
-      for (out_count = out_header.cupsWidth, out_ptr = out_line; out_count > 0; out_count --)
-      {
-        // Clear output line to light green...
-        *out_ptr++ = 223;
-        *out_ptr++ = 255;
-        *out_ptr++ = 223;
-      }
     }
 
     // Dither page...
@@ -267,6 +198,7 @@ main(int  argc,				// I - Number of command-line arguments
 // 'write_line()' - Write a color-coded line showing how dithering is applied.
 //
 
+
 static void
 write_line(
     lprint_dither_t    *dither,		// Dither buffer
@@ -282,21 +214,9 @@ write_line(
   unsigned char		*in_ptr;	// Pointer into input line
 
 
-  // Provide a color-coded version of the dithered output...
-  if (dither->out_mirror)
-  {
-    out_ptr = out_line + 3 * (out_header->cupsWidth - dither->out_offset - 1);
-    dptr    = dither->output + dither->out_width - 1 - (dither->out_offset / 8);
-    dbit    = 1 << (dither->out_offset & 7);
-  }
-  else
-  {
-    out_ptr = out_line + 3 * dither->out_offset;
-    dptr    = dither->output + dither->out_offset / 8;
-    dbit    = 128 >> (dither->out_offset & 7);
-  }
-
-  for (count = dither->in_width, in_ptr = dither->input[(y - 1) & 3]; count > 0; count --, in_ptr ++)
+  // Provide a color-coded version of the dithered output, with blue showing
+  // repeated areas...
+  for (count = dither->in_width, out_ptr = out_line, dptr = dither->output, dbit = 128, in_ptr = dither->input[(y - 1) & 3]; count > 0; count --, in_ptr ++)
   {
     // Set the current output pixel color...
     if (*dptr & dbit)
@@ -305,61 +225,42 @@ write_line(
       if (*in_ptr < 255)
       {
 	// Dark yellow for gray that came out black
-	out_ptr[0] = 79 - *in_ptr / 8;
-	out_ptr[1] = 79 - *in_ptr / 8;
-	out_ptr[2] = 31;
+	*out_ptr++ = 79 - *in_ptr / 8;
+	*out_ptr++ = 79 - *in_ptr / 8;
+	*out_ptr++ = 31;
       }
       else
       {
         // Black
-	out_ptr[0] = 0;
-	out_ptr[1] = 0;
-        out_ptr[2] = 0;
+	*out_ptr++ = 0;
+	*out_ptr++ = 0;
+        *out_ptr++ = 0;
       }
     }
     else if (*in_ptr)
     {
       // Yellow for gray that came out white
-      out_ptr[0] = 255 - *in_ptr / 4;
-      out_ptr[1] = 255 - *in_ptr / 4;
-      out_ptr[2] = 127;
+      *out_ptr++ = 255 - *in_ptr / 4;
+      *out_ptr++ = 255 - *in_ptr / 4;
+      *out_ptr++ = 127;
     }
     else
     {
       // White
-      out_ptr[0] = 255;
-      out_ptr[1] = 255;
-      out_ptr[2] = 255;
+      *out_ptr++ = 255;
+      *out_ptr++ = 255;
+      *out_ptr++ = 255;
     }
 
     // Advance to the next bit in the dithered output...
-    if (dither->out_mirror)
+    if (dbit == 1)
     {
-      if (dbit == 128)
-      {
-        dbit = 1;
-        dptr --;
-      }
-      else
-      {
-        dbit *= 2;
-      }
-
-      out_ptr -= 3;
+      dbit = 128;
+      dptr ++;
     }
     else
     {
-      if (dbit == 1)
-      {
-        dbit = 128;
-        dptr ++;
-      }
-      else
-      {
-        dbit /= 2;
-      }
-
-      out_ptr += 3;
+      dbit /= 2;
     }
   }
 
