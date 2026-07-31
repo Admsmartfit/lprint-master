@@ -1,0 +1,368 @@
+//
+// Dither test program
+//
+// Copyright © 2023-2026 by Michael R Sweet
+//
+// Licensed under Apache License v2.0.  See the file "LICENSE" for more
+// information.
+//
+// Usage:
+//
+//   ./testdither [--help] [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg > OUTPUT.pwg
+//
+
+#include "lprint.h"
+#include <fcntl.h>
+#include <unistd.h>
+
+
+//
+// Local functions...
+//
+
+static void	write_line(lprint_dither_t *dither, unsigned y, cups_raster_t *out_ras, cups_page_header_t *out_header, unsigned char *out_line);
+
+
+//
+// 'main()' - Main entry for test program.
+//
+
+int					// O - Exit status
+main(int  argc,				// I - Number of command-line arguments
+     char *argv[])			// I - Command-line arguments
+{
+  int			i;		// Looping var
+  int			ret = 0;	// Exit status
+  bool			mirror = false;	// Mirror output
+  bool			plain = false;	// Plain/original output
+  unsigned		head_width = 0;	// Head width in pixels
+  pappl_pr_options_t	options;	// Print job options
+  unsigned		page,		// Current page
+			y;		// Current line on page
+  const char		*in_name = NULL;// Input filename
+  int			in_file;	// Input file
+  cups_raster_t		*in_ras;	// Input raster stream
+  cups_page_header_t	in_header;	// Input page header
+  unsigned char		*in_line;	// Input line
+  cups_raster_t		*out_ras;	// Output raster stream
+  cups_page_header_t	out_header;	// Output page header
+  unsigned char		*out_line;	// Output line
+  unsigned char		*out_ptr;	// Pointer into output line
+  unsigned		out_count;	// Number of pixels in output line
+  lprint_dither_t	dither;		// Dithering data
+  static const pappl_dither_t clustered =
+  {					// Clustered-Dot Dither Matrix
+    {  96,  40,  48, 104, 140, 188, 196, 148,  97,  41,  49, 105, 141, 189, 197, 149 },
+    {  32,   0,   8,  56, 180, 236, 244, 204,  33,   1,   9,  57, 181, 237, 245, 205 },
+    {  88,  24,  16,  64, 172, 228, 252, 212,  89,  25,  17,  65, 173, 229, 253, 213 },
+    { 120,  80,  72, 112, 132, 164, 220, 156, 121,  81,  73, 113, 133, 165, 221, 157 },
+    { 136, 184, 192, 144, 100,  44,  52, 108, 137, 185, 193, 145, 101,  45,  53, 109 },
+    { 176, 232, 240, 200,  36,   4,  12,  60, 177, 233, 241, 201,  37,   5,  13,  61 },
+    { 168, 224, 248, 208,  92,  28,  20,  68, 169, 225, 249, 209,  93,  29,  21,  69 },
+    { 128, 160, 216, 152, 124,  84,  76, 116, 129, 161, 217, 153, 125,  85,  77, 117 },
+    {  98,  42,  50, 106, 142, 190, 198, 150,  99,  43,  51, 107, 143, 191, 199, 151 },
+    {  34,   2,  10,  58, 182, 238, 246, 206,  35,   3,  11,  59, 183, 239, 247, 207 },
+    {  90,  26,  18,  66, 174, 230, 254, 214,  91,  27,  19,  67, 175, 231, 254, 215 },
+    { 122,  82,  74, 114, 134, 166, 222, 158, 123,  83,  75, 115, 135, 167, 223, 159 },
+    { 138, 186, 194, 146, 102,  46,  54, 110, 139, 187, 195, 147, 103,  47,  55, 111 },
+    { 178, 234, 242, 202,  38,   6,  14,  62, 179, 235, 243, 203,  39,   7,  15,  63 },
+    { 170, 226, 250, 210,  94,  30,  22,  70, 171, 227, 251, 211,  95,  31,  23,  71 },
+    { 130, 162, 218, 154, 126,  86,  78, 118, 131, 163, 219, 155, 127,  87,  79, 119 }
+  };
+
+
+  // Check command-line
+  for (i = 1; i < argc; i ++)
+  {
+    if (!strcmp(argv[i], "--help"))
+    {
+      fputs("Usage: ./testdither [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg >OUTPUT.pwg\n", stderr);
+      return (0);
+    }
+    else if (!strcmp(argv[i], "--mirror"))
+    {
+      mirror = true;
+    }
+    else if (!strcmp(argv[i], "--plain"))
+    {
+      plain = true;
+    }
+    else if (!strcmp(argv[i], "--width"))
+    {
+      i ++;
+      if (i >= argc)
+      {
+        fputs("testdither: Missing width after '--width'.\n", stderr);
+        fputs("Usage: ./testdither [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg >OUTPUT.pwg\n", stderr);
+        return (1);
+      }
+
+      head_width = (unsigned)strtoul(argv[i], NULL, 10);
+    }
+    else if (!strncmp(argv[i], "--", 2) || in_name)
+    {
+      fprintf(stderr, "testdither: Unknown argument '%s'.\n", argv[i]);
+      fputs("Usage: ./testdither [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg >OUTPUT.pwg\n", stderr);
+      return (1);
+    }
+    else
+    {
+      in_name = argv[i];
+    }
+  }
+
+  if (!in_name)
+  {
+    fputs("Usage: ./testdither [--mirror] [--plain] [--width OUT-WIDTH] INPUT.pwg >OUTPUT.pwg\n", stderr);
+    return (1);
+  }
+
+  // Open input raster file...
+  if ((in_file = open(in_name, O_RDONLY)) < 0)
+  {
+    perror(in_name);
+    return (1);
+  }
+
+  if ((in_ras = cupsRasterOpen(in_file, CUPS_RASTER_READ)) == NULL)
+  {
+    fprintf(stderr, "%s: %s\n", in_name, cupsGetErrorString());
+    close(in_file);
+    return (1);
+  }
+
+  // Output output raster stream...
+  if ((out_ras = cupsRasterOpen(1, CUPS_RASTER_WRITE_PWG)) == NULL)
+  {
+    fprintf(stderr, "stdout: %s\n", cupsGetErrorString());
+    close(in_file);
+    cupsRasterClose(in_ras);
+    return (1);
+  }
+
+  // Loop until we run out of pages...
+  memset(&options, 0, sizeof(options));
+  memcpy(&options.dither, clustered, sizeof(options.dither));
+
+  for (page = 1; cupsRasterReadHeader(in_ras, &in_header); page ++)
+  {
+    // Show page info...
+    fprintf(stderr, "Page %u: %ux%ux%u\n", page, in_header.cupsWidth, in_header.cupsHeight, in_header.cupsBitsPerPixel);
+
+    // Build the output header and job options...
+    memcpy(&options.header, &in_header, sizeof(options.header));
+
+    memcpy(&out_header, &in_header, sizeof(out_header));
+    if (head_width > 0)
+      out_header.cupsWidth = head_width;
+
+    if (plain)
+    {
+      out_header.cupsColorOrder   = CUPS_ORDER_CHUNKED;
+      out_header.cupsColorSpace   = CUPS_CSPACE_K;
+      out_header.cupsBitsPerColor = 1;
+      out_header.cupsBitsPerPixel = 1;
+      out_header.cupsBytesPerLine = (out_header.cupsWidth + 7) / 8;
+      out_header.cupsNumColors    = 1;
+    }
+    else
+    {
+      out_header.cupsColorOrder   = CUPS_ORDER_CHUNKED;
+      out_header.cupsColorSpace   = CUPS_CSPACE_SRGB;
+      out_header.cupsBitsPerColor = 8;
+      out_header.cupsBitsPerPixel = 24;
+      out_header.cupsBytesPerLine = out_header.cupsWidth * 3;
+      out_header.cupsNumColors    = 3;
+    }
+
+    // Allocate memory
+    if (!lprintDitherAlloc(&dither, NULL, &options, head_width, CUPS_CSPACE_K, 1.0, mirror))
+    {
+      fputs("Unable to initialize dither buffer.\n", stderr);
+      ret = 1;
+      break;
+    }
+
+#if 0 // DEBUG
+    fprintf(stderr, "dither=[\n");
+    for (i = 0; i < 16; i ++)
+      fprintf(stderr, "  [ %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u %3u ]\n", dither.dither[i][0], dither.dither[i][1], dither.dither[i][2], dither.dither[i][3], dither.dither[i][4], dither.dither[i][5], dither.dither[i][6], dither.dither[i][7], dither.dither[i][8], dither.dither[i][9], dither.dither[i][10], dither.dither[i][11], dither.dither[i][12], dither.dither[i][13], dither.dither[i][14], dither.dither[i][15]);
+    fprintf(stderr, "]\n");
+    fprintf(stderr, "in_bottom=%u\n", dither.in_bottom);
+    fprintf(stderr, "in_left=%u\n", dither.in_left);
+    fprintf(stderr, "in_top=%u\n", dither.in_top);
+    fprintf(stderr, "in_width=%u\n", dither.in_width);
+    fprintf(stderr, "in_bpp=%u\n", dither.in_bpp);
+    fprintf(stderr, "in_white=%u\n", dither.in_white);
+    fprintf(stderr, "out_mirror=%s\n", dither.out_mirror ? "true" : "false");
+    fprintf(stderr, "out_offset=%u\n", dither.out_offset);
+    fprintf(stderr, "out_white=%u\n", dither.out_white);
+    fprintf(stderr, "out_width=%u\n", dither.out_width);
+#endif // 0
+
+    in_line  = malloc(in_header.cupsBytesPerLine);
+    out_line = malloc(out_header.cupsBytesPerLine);
+
+    if (!in_line || !out_line)
+    {
+      perror("Unable to allocate memory for page");
+      free(in_line);
+      free(out_line);
+      lprintDitherFree(&dither);
+      ret = 1;
+      break;
+    }
+
+    if (!plain)
+    {
+      for (out_count = out_header.cupsWidth, out_ptr = out_line; out_count > 0; out_count --)
+      {
+        // Clear output line to light green...
+        *out_ptr++ = 223;
+        *out_ptr++ = 255;
+        *out_ptr++ = 223;
+      }
+    }
+
+    // Dither page...
+    cupsRasterWriteHeader(out_ras, &out_header);
+
+    for (y = 0; y < in_header.cupsHeight; y ++)
+    {
+      cupsRasterReadPixels(in_ras, in_line, in_header.cupsBytesPerLine);
+
+      if (lprintDitherLine(&dither, y, in_line))
+      {
+	if (plain)
+	  cupsRasterWritePixels(out_ras, dither.output, out_header.cupsBytesPerLine);
+	else
+	  write_line(&dither, y, out_ras, &out_header, out_line);
+      }
+    }
+
+    if (lprintDitherLine(&dither, y, NULL))
+    {
+      if (plain)
+        cupsRasterWritePixels(out_ras, dither.output, out_header.cupsBytesPerLine);
+      else
+	write_line(&dither, y, out_ras, &out_header, out_line);
+    }
+
+    // Free memory
+    lprintDitherFree(&dither);
+    free(in_line);
+    free(out_line);
+  }
+
+  // Cleanup and exit...
+  close(in_file);
+  cupsRasterClose(in_ras);
+  cupsRasterClose(out_ras);
+
+  return (ret);
+}
+
+
+//
+// 'write_line()' - Write a color-coded line showing how dithering is applied.
+//
+
+static void
+write_line(
+    lprint_dither_t    *dither,		// Dither buffer
+    unsigned           y,		// Current line
+    cups_raster_t      *out_ras,	// Output raster stream
+    cups_page_header_t *out_header,	// Output page header
+    unsigned char      *out_line)	// Output line buffer
+{
+  unsigned		count;		// Number of pixels left
+  unsigned char		*out_ptr,	// Pointer into output line
+			*dptr,		// Pointer into dither output
+			dbit;		// Bit in dither output
+  unsigned char		*in_ptr;	// Pointer into input line
+
+
+  // Provide a color-coded version of the dithered output...
+  if (dither->out_mirror)
+  {
+    out_ptr = out_line + 3 * (out_header->cupsWidth - dither->out_offset - 1);
+    dptr    = dither->output + dither->out_width - 1 - (dither->out_offset / 8);
+    dbit    = 1 << (dither->out_offset & 7);
+  }
+  else
+  {
+    out_ptr = out_line + 3 * dither->out_offset;
+    dptr    = dither->output + dither->out_offset / 8;
+    dbit    = 128 >> (dither->out_offset & 7);
+  }
+
+  for (count = dither->in_width, in_ptr = dither->input[(y - 1) & 3]; count > 0; count --, in_ptr ++)
+  {
+    // Set the current output pixel color...
+    if (*dptr & dbit)
+    {
+      // Black or dark blue
+      if (*in_ptr < 255)
+      {
+	// Dark yellow for gray that came out black
+	out_ptr[0] = 79 - *in_ptr / 8;
+	out_ptr[1] = 79 - *in_ptr / 8;
+	out_ptr[2] = 31;
+      }
+      else
+      {
+        // Black
+	out_ptr[0] = 0;
+	out_ptr[1] = 0;
+        out_ptr[2] = 0;
+      }
+    }
+    else if (*in_ptr)
+    {
+      // Yellow for gray that came out white
+      out_ptr[0] = 255 - *in_ptr / 4;
+      out_ptr[1] = 255 - *in_ptr / 4;
+      out_ptr[2] = 127;
+    }
+    else
+    {
+      // White
+      out_ptr[0] = 255;
+      out_ptr[1] = 255;
+      out_ptr[2] = 255;
+    }
+
+    // Advance to the next bit in the dithered output...
+    if (dither->out_mirror)
+    {
+      if (dbit == 128)
+      {
+        dbit = 1;
+        dptr --;
+      }
+      else
+      {
+        dbit *= 2;
+      }
+
+      out_ptr -= 3;
+    }
+    else
+    {
+      if (dbit == 1)
+      {
+        dbit = 128;
+        dptr ++;
+      }
+      else
+      {
+        dbit /= 2;
+      }
+
+      out_ptr += 3;
+    }
+  }
+
+  // Write the output line and return...
+  cupsRasterWritePixels(out_ras, out_line, out_header->cupsBytesPerLine);
+}
