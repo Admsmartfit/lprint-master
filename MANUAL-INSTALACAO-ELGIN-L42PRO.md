@@ -59,17 +59,29 @@ sudo apt install -y build-essential git pkg-config autoconf \
 ## 3. Compilar e instalar a biblioteca PAPPL
 
 O LPrint depende da biblioteca PAPPL (também de Michael Sweet), que normalmente não vem
-empacotada — compilamos do código-fonte:
+empacotada — compilamos do código-fonte. **Use a tag estável `v1.4.11`, não a branch
+principal** — o branch de desenvolvimento do PAPPL já exige CUPS 2.5/3.0, versão que ainda
+não existe empacotada no Ubuntu/Debian; a v1.4.11 exige só CUPS 2.2+, que o `libcups2-dev`
+do passo 2 já atende:
 
 ```bash
 cd ~
-git clone https://github.com/michaelrsweet/pappl.git
+git clone --branch v1.4.11 --depth 1 https://github.com/michaelrsweet/pappl.git
 cd pappl
+chmod +x configure config.guess config.sub install-sh
 ./configure
 make
 sudo make install
 sudo ldconfig
 ```
+
+Confirme que ficou instalada:
+
+```bash
+pkg-config --modversion pappl
+```
+
+(deve mostrar `1.4.11`)
 
 ---
 
