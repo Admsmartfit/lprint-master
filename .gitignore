@@ -1,0 +1,11 @@
+*.o
+/lprint
+/testdither
+/testpackbits
+Makefile
+Makedefs
+config.h
+config.log
+config.status
+lprint.service
+autom4te.cache/
