@@ -90,10 +90,12 @@ git clone https://github.com/Admsmartfit/lprint-master.git
 
 ## 5. Compilar e instalar o LPrint
 
-Já no servidor Linux:
+Já no servidor Linux. O `git clone` não preserva a permissão de execução de alguns scripts,
+então rode o `chmod` antes do `./configure`:
 
 ```bash
 cd ~/lprint-master
+chmod +x configure config.guess config.sub install-sh
 ./configure
 make
 sudo make install
