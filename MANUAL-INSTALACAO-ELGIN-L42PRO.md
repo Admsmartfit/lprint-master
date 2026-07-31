@@ -73,18 +73,18 @@ sudo ldconfig
 
 ---
 
-## 4. Copiar o código-fonte do LPrint (já modificado) para o servidor
+## 4. Baixar o código-fonte do LPrint no servidor
 
-Na sua máquina Windows, dentro de `c:\Users\ralan\print\lprint-master`, envie a pasta inteira
-para o servidor Linux. Duas opções:
+O código (já com as edições que deixam só a Elgin) está no seu repositório GitHub. No
+servidor Linux:
 
-**Opção A — via scp (do Windows/PowerShell), rodando a partir da pasta do projeto:**
-
-```powershell
-scp -r . usuario@IP-DO-SERVIDOR:~/lprint-master
+```bash
+cd ~
+git clone https://github.com/Admsmartfit/lprint-master.git
 ```
 
-**Opção B — se preferir, suba para um repositório git seu e clone no servidor.**
+> Se você fizer alterações no código depois, basta rodar `git pull` dentro da pasta
+> `~/lprint-master` e repetir os passos 5 e 6 (recompilar e reiniciar o serviço).
 
 ---
 
@@ -132,7 +132,7 @@ rede (em vez da porta aleatória padrão):
 ```bash
 sudo tee /etc/lprint.conf > /dev/null <<'EOF'
 server-name=lprint-server
-server-port=8000
+server-port=8050
 listen-hostname=*
 server-options=multi-queue,web-interface,web-log,web-network
 log-file=/var/log/lprint.log
@@ -164,7 +164,7 @@ sudo systemctl status lprint.service
 ## 7. Liberar a porta no firewall
 
 ```bash
-sudo ufw allow 8000/tcp comment "LPrint web"
+sudo ufw allow 8050/tcp comment "LPrint web"
 sudo ufw allow 5353/udp comment "mDNS/Avahi"
 sudo ufw status
 ```
@@ -233,7 +233,7 @@ Se uma etiqueta sair impressa, está tudo funcionando.
 No Chrome, de **qualquer computador da mesma rede**, acesse:
 
 ```
-http://IP-DO-SERVIDOR:8000
+http://IP-DO-SERVIDOR:8050
 ```
 
 Nesse painel você consegue:
@@ -251,7 +251,7 @@ pelo protocolo IPP Everywhere que o LPrint já expõe, não pelo painel web:
   deve aparecer automaticamente (via Bonjour/mDNS) como "ElginL42Pro" — adicione e pronto,
   ela passa a existir no diálogo de impressão do Chrome.
 - **Se não aparecer automaticamente:** adicione manualmente usando a URL
-  `ipp://IP-DO-SERVIDOR:8000/ipp/print/ElginL42Pro`.
+  `ipp://IP-DO-SERVIDOR:8050/ipp/print/ElginL42Pro`.
 - **Chrome OS / Android / iOS / macOS:** detectam a impressora automaticamente por AirPrint,
   já que o LPrint implementa IPP Everywhere.
 
@@ -286,7 +286,7 @@ painel.
 |---|---|---|
 | `lprint add` trava/erro de conexão | IP errado ou impressora desligada | Reimprima o autoteste (Feed + Power) e confira o IP |
 | Serviço não inicia | `avahi-daemon` não está rodando | `sudo systemctl status avahi-daemon` |
-| Painel não abre no Chrome | Porta bloqueada no firewall | `sudo ufw allow 8000/tcp` |
+| Painel não abre no Chrome | Porta bloqueada no firewall | `sudo ufw allow 8050/tcp` |
 | Etiqueta sai deslocada/cortada | Tamanho de mídia errado | Ajuste `media-ready` com `lprint modify` |
 | Etiqueta sai em branco | Driver errado (`dt` vs `tt`) para o tipo de mídia usado | Troque o driver com `lprint modify -d ElginL42Pro -m zpl_4inch-203dpi-dt` (ou `-tt`) |
 | `./configure` não acha o CUPS/PAPPL | Pacote `-dev` com nome diferente | Rode `pkg-config --list-all \| grep -i cups` para achar o nome certo |
