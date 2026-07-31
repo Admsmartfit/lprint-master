@@ -126,7 +126,7 @@ lprintESCPOS(
     data->num_media = (int)(sizeof(lprint_escpos_58mm) / sizeof(lprint_escpos_58mm[0]));
     memcpy(data->media, lprint_escpos_58mm, sizeof(lprint_escpos_58mm));
 
-    cupsCopyString(data->media_ready[0].size_name, "oe_2.25-receipt_58x1000mm", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].size_name, "oe_2.25-receipt_58x1000mm", sizeof(data->media_ready[0].size_name));
   }
   else
   {
@@ -137,7 +137,7 @@ lprintESCPOS(
     data->num_media = (int)(sizeof(lprint_escpos_80mm) / sizeof(lprint_escpos_80mm[0]));
     memcpy(data->media, lprint_escpos_80mm, sizeof(lprint_escpos_80mm));
 
-    cupsCopyString(data->media_ready[0].size_name, "oe_3.125-receipt_80x1000mm", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].size_name, "oe_3.125-receipt_80x1000mm", sizeof(data->media_ready[0].size_name));
   }
 
   return (true);

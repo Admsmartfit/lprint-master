@@ -249,8 +249,8 @@ lprintZPL(
     data->num_media = (int)(sizeof(lprint_zpl_2inch_media) / sizeof(lprint_zpl_2inch_media[0]));
     memcpy(data->media, lprint_zpl_2inch_media, sizeof(lprint_zpl_2inch_media));
 
-    cupsCopyString(data->media_ready[0].size_name, "oe_2x3-label_2x3in", sizeof(data->media_ready[0].size_name));
-    cupsCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
+    papplCopyString(data->media_ready[0].size_name, "oe_2x3-label_2x3in", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
   }
   else
   {
@@ -258,8 +258,8 @@ lprintZPL(
     data->num_media = (int)(sizeof(lprint_zpl_4inch_media) / sizeof(lprint_zpl_4inch_media[0]));
     memcpy(data->media, lprint_zpl_4inch_media, sizeof(lprint_zpl_4inch_media));
 
-    cupsCopyString(data->media_ready[0].size_name, "na_index-4x6_4x6in", sizeof(data->media_ready[0].size_name));
-    cupsCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
+    papplCopyString(data->media_ready[0].size_name, "na_index-4x6_4x6in", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
   }
 
   data->media_ready[0].tracking = PAPPL_MEDIA_TRACKING_GAP;

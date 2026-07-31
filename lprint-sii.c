@@ -146,8 +146,8 @@ lprintSII(
   data->num_source = 1;
   data->source[0]  = "main-roll";
 
-  cupsCopyString(data->media_ready[0].size_name, "om_address-small_24x83mm", sizeof(data->media_ready[0].size_name));
-  cupsCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
+  papplCopyString(data->media_ready[0].size_name, "om_address-small_24x83mm", sizeof(data->media_ready[0].size_name));
+  papplCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
 
   data->num_type = 1;
   data->type[0]  = "labels";

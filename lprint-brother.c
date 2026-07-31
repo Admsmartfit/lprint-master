@@ -149,8 +149,8 @@ lprintBrother(
     data->num_media = (int)(sizeof(lprint_brother_ql_media) / sizeof(lprint_brother_ql_media[0]));
     memcpy(data->media, lprint_brother_ql_media, sizeof(lprint_brother_ql_media));
 
-    cupsCopyString(data->media_ready[0].size_name, "roll_dk2205-continuous_2.4x3.9in", sizeof(data->media_ready[0].size_name));
-    cupsCopyString(data->media_ready[0].type, "continuous", sizeof(data->media_ready[0].type));
+    papplCopyString(data->media_ready[0].size_name, "roll_dk2205-continuous_2.4x3.9in", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].type, "continuous", sizeof(data->media_ready[0].type));
 
     data->num_type = 2;
     data->type[0]  = "labels";
@@ -176,8 +176,8 @@ lprintBrother(
     data->num_source = 1;
     data->source[0]  = "main-roll";
 
-    cupsCopyString(data->media_ready[0].size_name, "oe_wide-2in-tape_1x2in", sizeof(data->media_ready[0].size_name));
-    cupsCopyString(data->media_ready[0].type, "continuous", sizeof(data->media_ready[0].type));
+    papplCopyString(data->media_ready[0].size_name, "oe_wide-2in-tape_1x2in", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].type, "continuous", sizeof(data->media_ready[0].type));
 
     data->num_type = 2;
     data->type[0]  = "continuous";

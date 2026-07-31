@@ -203,7 +203,7 @@ lprintDYMO(
     data->num_source = 1;
     data->source[0]  = "main-roll";
 
-    cupsCopyString(data->media_ready[0].size_name, "oe_wide-2in-tape_1x2in", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].size_name, "oe_wide-2in-tape_1x2in", sizeof(data->media_ready[0].size_name));
   }
   else
   {
@@ -245,18 +245,18 @@ lprintDYMO(
       data->source[0]  = "main-roll";
       data->source[1]  = "alternate-roll";
 
-      cupsCopyString(data->media_ready[0].size_name, "oe_address-label_1.125x3.5in", sizeof(data->media_ready[0].size_name));
-      cupsCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
-      cupsCopyString(data->media_ready[1].size_name, "oe_address-label_1.125x3.5in", sizeof(data->media_ready[1].size_name));
-      cupsCopyString(data->media_ready[1].type, "labels", sizeof(data->media_ready[0].type));
+      papplCopyString(data->media_ready[0].size_name, "oe_address-label_1.125x3.5in", sizeof(data->media_ready[0].size_name));
+      papplCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
+      papplCopyString(data->media_ready[1].size_name, "oe_address-label_1.125x3.5in", sizeof(data->media_ready[1].size_name));
+      papplCopyString(data->media_ready[1].type, "labels", sizeof(data->media_ready[0].type));
     }
     else
     {
       data->num_source = 1;
       data->source[0]  = "main-roll";
 
-      cupsCopyString(data->media_ready[0].size_name, "oe_address-label_1.125x3.5in", sizeof(data->media_ready[0].size_name));
-      cupsCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
+      papplCopyString(data->media_ready[0].size_name, "oe_address-label_1.125x3.5in", sizeof(data->media_ready[0].size_name));
+      papplCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
     }
   }
 

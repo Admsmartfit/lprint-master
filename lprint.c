@@ -214,7 +214,7 @@ driver_cb(
   {
     if (!strcmp(driver_name, lprint_drivers[i].name))
     {
-      cupsCopyString(data->make_and_model, lprint_drivers[i].description, sizeof(data->make_and_model));
+      papplCopyString(data->make_and_model, lprint_drivers[i].description, sizeof(data->make_and_model));
       break;
     }
   }
@@ -314,9 +314,9 @@ driver_cb(
     data->media_ready[i].size_width    = pwg->width;
     data->media_ready[i].size_length   = pwg->length;
     data->media_ready[i].top_margin    = data->bottom_top;
-    cupsCopyString(data->media_ready[i].source, data->source[i], sizeof(data->media_ready[i].source));
+    papplCopyString(data->media_ready[i].source, data->source[i], sizeof(data->media_ready[i].source));
     if (!data->media_ready[i].type[0])
-      cupsCopyString(data->media_ready[i].type, data->type[0], sizeof(data->media_ready[i].type));
+      papplCopyString(data->media_ready[i].type, data->type[0], sizeof(data->media_ready[i].type));
   }
 
   // By default use media from the main source...
@@ -590,8 +590,8 @@ system_cb(
   }
   else
   {
-    cupsCopyString(oldfile, "/lprint.ini", sizeof(oldfile));
-    cupsCopyString(lprint_statefile, "/lprint.state", sizeof(lprint_statefile));
+    papplCopyString(oldfile, "/lprint.ini", sizeof(oldfile));
+    papplCopyString(lprint_statefile, "/lprint.state", sizeof(lprint_statefile));
   }
 #else
   else if ((val = getenv("HOME")) != NULL)
@@ -619,11 +619,11 @@ system_cb(
   }
   else
   {
-    cupsCopyString(oldfile, "/etc/lprint.conf", sizeof(oldfile));
+    papplCopyString(oldfile, "/etc/lprint.conf", sizeof(oldfile));
 #  ifdef __APPLE__
-    cupsCopyString(lprint_statefile, "/private/var/lib/lprint.state", sizeof(lprint_statefile));
+    papplCopyString(lprint_statefile, "/private/var/lib/lprint.state", sizeof(lprint_statefile));
 #  else
-    cupsCopyString(lprint_statefile, "/var/lib/lprint.state", sizeof(lprint_statefile));
+    papplCopyString(lprint_statefile, "/var/lib/lprint.state", sizeof(lprint_statefile));
 #  endif // __APPLE__
   }
 #endif // _WIN32
@@ -707,7 +707,7 @@ system_cb(
 	if (!strncasecmp(dev->device_info, "Zebra Technologies ZTC ", 23))
 	  snprintf(name, sizeof(name), "Zebra %s", dev->device_info + 23);
 	else
-	  cupsCopyString(name, dev->device_info, sizeof(name));
+	  papplCopyString(name, dev->device_info, sizeof(name));
 
 	if ((nameptr = strstr(name, " (")) != NULL)
 	  *nameptr = '\0';
@@ -729,7 +729,7 @@ system_cb(
 	    snprintf(number, sizeof(number), " %d", i);
 	    numberlen = strlen(number);
 
-	    cupsCopyString(newname, name, sizeof(newname));
+	    papplCopyString(newname, name, sizeof(newname));
 	    if ((namelen + numberlen) < sizeof(newname))
 	      memcpy(newname + namelen, number, numberlen + 1);
 	    else

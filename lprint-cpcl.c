@@ -161,16 +161,16 @@ lprintCPCL(
     data->num_media = (int)(sizeof(lprint_hma300e_media) / sizeof(lprint_hma300e_media[0]));
     memcpy(data->media, lprint_hma300e_media, sizeof(lprint_hma300e_media));
 
-    cupsCopyString(data->media_ready[0].size_name, "roll_main_80x150mm", sizeof(data->media_ready[0].size_name));
-    cupsCopyString(data->media_ready[0].type, "continuous", sizeof(data->media_ready[0].type));
+    papplCopyString(data->media_ready[0].size_name, "roll_main_80x150mm", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].type, "continuous", sizeof(data->media_ready[0].type));
   }
   else
   {
     data->num_media = (int)(sizeof(lprint_cpcl_media) / sizeof(lprint_cpcl_media[0]));
     memcpy(data->media, lprint_cpcl_media, sizeof(lprint_cpcl_media));
 
-    cupsCopyString(data->media_ready[0].size_name, "na_index-4x6_4x6in", sizeof(data->media_ready[0].size_name));
-    cupsCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
+    papplCopyString(data->media_ready[0].size_name, "na_index-4x6_4x6in", sizeof(data->media_ready[0].size_name));
+    papplCopyString(data->media_ready[0].type, "labels", sizeof(data->media_ready[0].type));
   }
 
   data->bottom_top = data->left_right = 1;
