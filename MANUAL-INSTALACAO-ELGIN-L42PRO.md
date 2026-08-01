@@ -147,33 +147,37 @@ tipo AirPrint na rede):
 sudo systemctl enable --now avahi-daemon
 ```
 
-Crie o arquivo de configuração `/etc/lprint.conf` para fixar a porta e liberar o acesso pela
-rede (em vez da porta aleatória padrão):
+> **Não use o arquivo `/etc/lprint.conf`.** Existe um bug real no código do LPrint
+> (`lprint.c`, função `system_cb`, por volta da linha 617): quando a variável de ambiente
+> `HOME` não existe — que é exatamente o caso do `systemd` rodando como root sem shell de
+> login — o LPrint trata `/etc/lprint.conf` como um arquivo de migração legado e **renomeia**
+> ele para `/var/lib/lprint.state` na primeira execução. Só que o conteúdo de um
+> `lprint.conf` não é um formato válido de `lprint.state`, então isso gera avisos
+> "Unknown directive" pra sempre e a porta configurada nunca fica fixa de verdade (cai numa
+> porta aleatória a cada reinício). A solução é configurar tudo direto na definição do
+> serviço systemd, por um "drop-in" — assim nunca passa pelo `/etc/lprint.conf`:
 
 ```bash
-sudo tee /etc/lprint.conf > /dev/null <<'EOF'
-system-name=lprint-server
-server-port=8050
-listen-hostname=*
-server-options=multi-queue,web-interface,web-log,web-network
-log-file=/var/log/lprint.log
-log-level=info
-spool-directory=/var/spool/lprint
+sudo mkdir -p /etc/systemd/system/lprint.service.d
+sudo tee /etc/systemd/system/lprint.service.d/override.conf > /dev/null <<'EOF'
+[Service]
+ExecStart=
+ExecStart=/usr/local/bin/lprint server -o log-file=- -o log-level=info -o system-name=lprint-server -o server-port=8050 -o listen-hostname=* -o server-options=multi-queue,web-interface,web-log,web-network -o spool-directory=/var/spool/lprint
 EOF
 
 sudo mkdir -p /var/spool/lprint
 ```
 
-> **Atenção ao nome da opção:** é `system-name`, não `server-name` — usar o nome errado não
-> quebra nada, mas gera avisos "Unknown directive" no log e a opção é ignorada.
+> As duas linhas `ExecStart=` são propositais: a primeira (vazia) limpa o comando padrão do
+> serviço, a segunda define o novo. Um "drop-in" sobrevive a um `sudo make install` futuro
+> (o arquivo `.service` original é regerado a cada build, mas o drop-in não é tocado).
 
-> **Sobre a linha `server-options`:** por padrão o LPrint usaria
-> `multi-queue,web-interface,web-log,web-security,web-tls`. Ao definir `server-options=`
-> explicitamente acima, isso é **substituído** — de propósito removi `web-security` (sem
-> pedir login, painel "simples" como pedido) e `web-tls` (sem HTTPS autoassinado, evita aviso
-> de certificado no Chrome). Isso é aceitável em uma rede local confiável, mas **qualquer
-> pessoa na rede poderá ver o status e cancelar trabalhos**. Se quiser exigir login, veja a
-> seção 12.
+> **Sobre `server-options`:** por padrão o LPrint usaria
+> `multi-queue,web-interface,web-log,web-security,web-tls`. Ao definir explicitamente acima,
+> isso é **substituído** — de propósito ficou sem `web-security` (sem pedir login, painel
+> "simples" como pedido) e sem `web-tls` (sem HTTPS autoassinado, evita aviso de certificado
+> no Chrome). Isso é aceitável em uma rede local confiável, mas **qualquer pessoa na rede
+> poderá ver o status e cancelar trabalhos**. Se quiser exigir login, veja a seção 12.
 
 Ative e inicie o serviço:
 
@@ -183,15 +187,21 @@ sudo systemctl enable --now lprint.service
 sudo systemctl status lprint.service
 ```
 
+Confirme que a porta 8050 está realmente escutando:
+
+```bash
+sudo ss -tlnp | grep lprint
+```
+
 > **Se você já tinha rodado o LPrint antes** (testes, ou uma versão anterior deste manual)
-> pode existir um `/var/lib/lprint.state` antigo com configuração incompatível, o que gera
-> avisos "Unknown directive" no log e pode causar comportamento estranho. Se isso acontecer,
-> pare o serviço, apague o arquivo de estado e inicie de novo:
+> pode existir um `/etc/lprint.conf` e/ou `/var/lib/lprint.state` contaminados pelo bug acima.
+> Limpe os dois antes de aplicar o drop-in:
 > ```bash
 > sudo systemctl stop lprint.service
-> sudo rm -f /var/lib/lprint.state
-> sudo systemctl start lprint.service
+> sudo rm -f /etc/lprint.conf /var/lib/lprint.state
 > ```
+> Isso apaga qualquer impressora já cadastrada — recadastre no passo 9 depois de iniciar o
+> serviço de novo.
 
 ---
 
@@ -292,18 +302,21 @@ pelo protocolo IPP Everywhere que o LPrint já expõe, não pelo painel web:
 
 ## 12. Adicionar senha ao painel (opcional, recomendado fora de rede confiável)
 
-Edite `/etc/lprint.conf` (`sudo nano /etc/lprint.conf`) e troque a linha `server-options=`
-para incluir `web-security` de volta, além de adicionar as duas linhas de autenticação:
+Edite o drop-in do systemd (`sudo nano /etc/systemd/system/lprint.service.d/override.conf`,
+criado no passo 6) e troque a linha `ExecStart=` para incluir `web-security` de volta na
+lista de `server-options`, além de acrescentar `-o auth-service=login -o admin-group=sudo`:
 
-```
-server-options=multi-queue,web-interface,web-log,web-network,web-security
-auth-service=login
-admin-group=sudo
+```ini
+[Service]
+ExecStart=
+ExecStart=/usr/local/bin/lprint server -o log-file=- -o log-level=info -o system-name=lprint-server -o server-port=8050 -o listen-hostname=* -o server-options=multi-queue,web-interface,web-log,web-network,web-security -o spool-directory=/var/spool/lprint -o auth-service=login -o admin-group=sudo
 ```
 
-Depois reinicie o serviço:
+Depois recarregue e reinicie o serviço (drop-in é lido pelo systemd, não pelo LPrint, então
+precisa do `daemon-reload`):
 
 ```bash
+sudo systemctl daemon-reload
 sudo systemctl restart lprint.service
 ```
 
@@ -321,9 +334,10 @@ painel.
 | `Unable to add printer: Attribute groups are out of order` | Bug do `-o media-ready=` no `add` (branch `master`/PAPPL) | Não use `-o media-ready=` no `add`; ajuste a mídia depois pelo painel web |
 | `configure: error: Sorry, you need CUPS 2.5.0 or higher` (ao compilar o PAPPL) | Clonou a branch de desenvolvimento do PAPPL em vez da tag `v1.4.11` | Reclone com `--branch v1.4.11` (veja passo 3) |
 | `undefined reference to 'cupsCopyString'` ao linkar o `lprint` | Código da branch `master` do LPrint usa API do CUPS 2.5+, ausente no CUPS 2.4 do Ubuntu | Use a base `v1.4.0` do LPrint (veja passo 4/0) — ela não usa essa função |
-| "Unknown directive" no log do serviço | Chave errada no `/etc/lprint.conf` (ex: `server-name` em vez de `system-name`), ou `/var/lib/lprint.state` corrompido de um teste anterior | Corrija a chave; se persistir, pare o serviço e apague `/var/lib/lprint.state` (veja passo 6) |
+| "Unknown directive" no log do serviço | `/etc/lprint.conf` existe (bug de migração — veja passo 6) | Apague `/etc/lprint.conf` e `/var/lib/lprint.state`, use o drop-in do systemd (passo 6) |
+| Painel abre localmente mas `ERR_CONNECTION_REFUSED` de outro PC / porta não é a 8050 (`ss -tlnp \| grep lprint` mostra outra porta) | Mesmo bug do `/etc/lprint.conf` — a porta configurada não "grudou" e caiu numa aleatória | Configure a porta pelo drop-in do systemd, não pelo `/etc/lprint.conf` (passo 6) |
 | Serviço não inicia | `avahi-daemon` não está rodando | `sudo systemctl status avahi-daemon` |
-| Painel não abre no Chrome | Porta bloqueada no firewall | `sudo ufw allow 8050/tcp` |
+| Painel não abre no Chrome | Porta bloqueada no firewall, ou serviço não está de fato escutando nela | `sudo ufw allow 8050/tcp` e confira com `sudo ss -tlnp \| grep lprint` |
 | Etiqueta sai deslocada/cortada | Tamanho de mídia errado | Ajuste a mídia pelo painel web (não use `-o media-ready=` no terminal) |
 | Etiqueta sai em branco | Driver errado (`dt` vs `tt`) para o tipo de mídia usado | Troque o driver com `lprint modify -d ElginL42Pro -m zpl_4inch-203dpi-dt` (ou `-tt`) |
 | `./configure` não acha o CUPS/PAPPL | Pacote `-dev` com nome diferente | Rode `pkg-config --list-all \| grep -i cups` para achar o nome certo |
